@@ -1,0 +1,49 @@
+<div class="order-book-container">
+  <div *ngIf="!orderBook" class="loading">
+    Loading order book data...
+  </div>
+  
+  <div *ngIf="orderBook" class="order-book">
+    <div class="order-book-header">
+      <div class="last-update">Last Update ID: {{ orderBook.lastUpdateId }}</div>
+    </div>
+    
+    <div class="order-tables">
+      <div class="bids-table">
+        <h3>Bids</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Price</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let bid of orderBook.bids">
+              <td class="price bid-price">{{ bid.price }}</td>
+              <td class="quantity">{{ bid.quantity }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="asks-table">
+        <h3>Asks</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Price</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ask of orderBook.asks">
+              <td class="price ask-price">{{ ask.price }}</td>
+              <td class="quantity">{{ ask.quantity }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

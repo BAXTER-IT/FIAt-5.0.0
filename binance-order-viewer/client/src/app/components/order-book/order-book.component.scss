@@ -1,0 +1,79 @@
+.order-book-container {
+  margin-top: 20px;
+}
+
+.loading {
+  text-align: center;
+  font-size: 18px;
+  color: #666;
+  padding: 20px;
+}
+
+.order-book-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.last-update {
+  font-size: 14px;
+  color: #666;
+}
+
+.order-tables {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.bids-table, .asks-table {
+  flex: 1;
+  background-color: white;
+  border-radius: 5px;
+  padding: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  text-align: center;
+  color: #333;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  text-align: right;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  font-weight: bold;
+  color: #666;
+}
+
+.price {
+  font-weight: bold;
+}
+
+.bid-price {
+  color: #28a745; /* Green for bids */
+}
+
+.ask-price {
+  color: #dc3545; /* Red for asks */
+}
+
+.quantity {
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .order-tables {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Order Book Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .order-book-container {
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            padding: 20px;
+        }
+        .order-book-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .last-update {
+            font-size: 14px;
+            color: #666;
+        }
+        .order-tables {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .bids-table, .asks-table {
+            flex: 1;
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            font-weight: bold;
+            color: #666;
+        }
+        .price {
+            font-weight: bold;
+        }
+        .bid-price {
+            color: #28a745; /* Green for bids */
+        }
+        .ask-price {
+            color: #dc3545; /* Red for asks */
+        }
+        .quantity {
+            color: #333;
+        }
+        @media (max-width: 768px) {
+            .order-tables {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Binance Order Viewer</h1>
+        <div class="order-book-container">
+            <div id="loading" class="loading">
+                Loading order book data...
+            </div>
+            <div id="order-book" class="order-book" style="display: none;">
+                <div class="order-book-header">
+                    <div id="last-update" class="last-update"></div>
+                </div>
+                <div class="order-tables">
+                    <div class="bids-table">
+                        <h3>Bids</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bids-body">
+                                <!-- Bids will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="asks-table">
+                        <h3>Asks</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="asks-body">
+                                <!-- Asks will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to WebSocket
+            const socket = new SockJS('http://localhost:8080/ws');
+            const stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('Connected to WebSocket: ' + frame);
+                
+                // Subscribe to the order book topic
+                stompClient.subscribe('/topic/orderbook', function(message) {
+                    if (message.body) {
+                        const orderBookData = JSON.parse(message.body);
+                        updateOrderBook(orderBookData);
+                    }
+                });
+            }, function(error) {
+                console.error('STOMP error', error);
+                document.getElementById('loading').textContent = 'Error connecting to server. Please try again later.';
+            });
+
+            function updateOrderBook(orderBook) {
+                // Hide loading and show order book
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('order-book').style.display = 'block';
+                
+                // Update last update ID
+                document.getElementById('last-update').textContent = 'Last Update ID: ' + orderBook.lastUpdateId;
+                
+                // Update bids
+                const bidsBody = document.getElementById('bids-body');
+                bidsBody.innerHTML = '';
+                orderBook.bids.forEach(bid => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="price bid-price">${bid.price}</td>
+                        <td class="quantity">${bid.quantity}</td>
+                    `;
+                    bidsBody.appendChild(row);
+                });
+                
+                // Update asks
+                const asksBody = document.getElementById('asks-body');
+                asksBody.innerHTML = '';
+                orderBook.asks.forEach(ask => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="price ask-price">${ask.price}</td>
+                        <td class="quantity">${ask.quantity}</td>
+                    `;
+                    asksBody.appendChild(row);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
