@@ -76,8 +76,14 @@
         .bid-price {
             color: #28a745; /* Green for bids */
         }
+        .bid-price.manually-added {
+            color: #007bff; /* Blue for manually added bids */
+        }
         .ask-price {
             color: #dc3545; /* Red for asks */
+        }
+        .ask-price.manually-added {
+            color: #ffc107; /* Yellow for manually added asks */
         }
         .quantity {
             color: #333;
@@ -172,6 +178,29 @@
                             bids: data.bids.map(item => ({ price: item[0], quantity: item[1] })),
                             asks: data.asks.map(item => ({ price: item[0], quantity: item[1] }))
                         };
+                        
+                        // Add dummy manually added orders for testing
+                        if (orderBookData.bids && orderBookData.bids.length > 0) {
+                            // Add a dummy bid with isManuallyAdded = true
+                            const firstBidPrice = parseFloat(orderBookData.bids[0].price);
+                            const dummyBidPrice = (firstBidPrice * 1.001).toFixed(8); // Slightly higher price
+                            orderBookData.bids.unshift({
+                                price: dummyBidPrice,
+                                quantity: "12345678",
+                                isManuallyAdded: true
+                            });
+                        }
+                        
+                        if (orderBookData.asks && orderBookData.asks.length > 0) {
+                            // Add a dummy ask with isManuallyAdded = true
+                            const firstAskPrice = parseFloat(orderBookData.asks[0].price);
+                            const dummyAskPrice = (firstAskPrice * 0.999).toFixed(8); // Slightly lower price
+                            orderBookData.asks.unshift({
+                                price: dummyAskPrice,
+                                quantity: "54655",
+                                isManuallyAdded: true
+                            });
+                        }
                         updateOrderBook(orderBookData);
                     })
                     .catch(error => {
@@ -212,8 +241,9 @@
                 bidsBody.innerHTML = '';
                 orderBook.bids.forEach(bid => {
                     const row = document.createElement('tr');
+                    const priceClass = bid.isManuallyAdded ? "price bid-price manually-added" : "price bid-price";
                     row.innerHTML = `
-                        <td class="price bid-price">${bid.price}</td>
+                        <td class="${priceClass}">${bid.price}</td>
                         <td class="quantity">${bid.quantity}</td>
                     `;
                     bidsBody.appendChild(row);
@@ -224,8 +254,9 @@
                 asksBody.innerHTML = '';
                 orderBook.asks.forEach(ask => {
                     const row = document.createElement('tr');
+                    const priceClass = ask.isManuallyAdded ? "price ask-price manually-added" : "price ask-price";
                     row.innerHTML = `
-                        <td class="price ask-price">${ask.price}</td>
+                        <td class="${priceClass}">${ask.price}</td>
                         <td class="quantity">${ask.quantity}</td>
                     `;
                     asksBody.appendChild(row);
