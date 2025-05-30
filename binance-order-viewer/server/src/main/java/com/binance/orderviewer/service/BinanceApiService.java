@@ -2,11 +2,13 @@ package com.binance.orderviewer.service;
 
 import com.binance.orderviewer.model.OrderBook;
 import com.binance.orderviewer.model.PriceQuantityPair;
+import com.binance.orderviewer.repository.ManualOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +19,9 @@ public class BinanceApiService {
     
     @Autowired
     private RestTemplate restTemplate;
+    
+    @Autowired
+    private ManualOrderRepository manualOrderRepository;
     
     // Cache for the order book data
     private OrderBook cachedOrderBook;
@@ -38,8 +43,8 @@ public class BinanceApiService {
         // Create the order book
         OrderBook orderBook = new OrderBook(lastUpdateId, bids, asks);
         
-        // Add dummy orders
-        addDummyOrders(orderBook);
+        // Add manually added orders from the repository
+        addManualOrders(orderBook);
         
         // Cache the order book
         this.cachedOrderBook = orderBook;
@@ -48,32 +53,37 @@ public class BinanceApiService {
     }
     
     /**
-     * Adds dummy orders to the order book
-     * @param orderBook The order book to add dummy orders to
+     * Adds manually added orders from the repository to the order book
+     * @param orderBook The order book to add manually added orders to
      */
-    private void addDummyOrders(OrderBook orderBook) {
-        if (orderBook.getBids() != null && !orderBook.getBids().isEmpty()) {
-            // Add a dummy bid order with quantity 12345678
-            // Use the first bid price as a reference and slightly increase it
-            String bidPrice = orderBook.getBids().get(0).getPrice();
-            double bidPriceValue = Double.parseDouble(bidPrice);
-            String dummyBidPrice = String.format("%.2f", bidPriceValue * 1.001); // Slightly higher price
-            
-            PriceQuantityPair dummyBid = new PriceQuantityPair(dummyBidPrice, "12345678");
-            dummyBid.setIsManuallyAdded(true);
-            orderBook.getBids().add(0, dummyBid);
+    private void addManualOrders(OrderBook orderBook) {
+        // Add manually added bids
+        List<PriceQuantityPair> manualBids = manualOrderRepository.getManualBids();
+        if (orderBook.getBids() == null) {
+            orderBook.setBids(new ArrayList<>());
+        }
+        orderBook.getBids().addAll(manualBids);
+        
+        // Sort bids by price in descending order (highest price first)
+        if (!orderBook.getBids().isEmpty()) {
+            orderBook.getBids().sort(Comparator.comparing(
+                pair -> Double.parseDouble(pair.getPrice()), 
+                Comparator.reverseOrder()
+            ));
         }
         
-        if (orderBook.getAsks() != null && !orderBook.getAsks().isEmpty()) {
-            // Add a dummy ask order with quantity 54655
-            // Use the first ask price as a reference and slightly decrease it
-            String askPrice = orderBook.getAsks().get(0).getPrice();
-            double askPriceValue = Double.parseDouble(askPrice);
-            String dummyAskPrice = String.format("%.2f", askPriceValue * 0.999); // Slightly lower price
-            
-            PriceQuantityPair dummyAsk = new PriceQuantityPair(dummyAskPrice, "54655");
-            dummyAsk.setIsManuallyAdded(true);
-            orderBook.getAsks().add(0, dummyAsk);
+        // Add manually added asks
+        List<PriceQuantityPair> manualAsks = manualOrderRepository.getManualAsks();
+        if (orderBook.getAsks() == null) {
+            orderBook.setAsks(new ArrayList<>());
+        }
+        orderBook.getAsks().addAll(manualAsks);
+        
+        // Sort asks by price in ascending order (lowest price first)
+        if (!orderBook.getAsks().isEmpty()) {
+            orderBook.getAsks().sort(Comparator.comparing(
+                pair -> Double.parseDouble(pair.getPrice())
+            ));
         }
     }
     
@@ -97,5 +107,50 @@ public class BinanceApiService {
      */
     public OrderBook getCachedOrderBookData() {
         return cachedOrderBook != null ? cachedOrderBook : new OrderBook();
+    }
+    
+    /**
+     * Adds a new order to the order book and stores it in the repository
+     * @param order The order to add
+     * @param orderType The type of order (bid or ask)
+     * @return The updated order book
+     */
+    public OrderBook addOrder(PriceQuantityPair order, String orderType) {
+        if (cachedOrderBook == null) {
+            // Initialize the order book if it doesn't exist
+            cachedOrderBook = new OrderBook();
+            cachedOrderBook.setBids(new ArrayList<>());
+            cachedOrderBook.setAsks(new ArrayList<>());
+        }
+        
+        // Store the order in the repository
+        manualOrderRepository.addOrder(order, orderType);
+        
+        if ("bid".equalsIgnoreCase(orderType)) {
+            // Add to bids
+            if (cachedOrderBook.getBids() == null) {
+                cachedOrderBook.setBids(new ArrayList<>());
+            }
+            cachedOrderBook.getBids().add(order);
+            
+            // Sort bids by price in descending order (highest price first)
+            cachedOrderBook.getBids().sort(Comparator.comparing(
+                pair -> Double.parseDouble(pair.getPrice()), 
+                Comparator.reverseOrder()
+            ));
+        } else if ("ask".equalsIgnoreCase(orderType)) {
+            // Add to asks
+            if (cachedOrderBook.getAsks() == null) {
+                cachedOrderBook.setAsks(new ArrayList<>());
+            }
+            cachedOrderBook.getAsks().add(order);
+            
+            // Sort asks by price in ascending order (lowest price first)
+            cachedOrderBook.getAsks().sort(Comparator.comparing(
+                pair -> Double.parseDouble(pair.getPrice())
+            ));
+        }
+        
+        return cachedOrderBook;
     }
 }

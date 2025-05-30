@@ -233,33 +233,50 @@
                     return;
                 }
                 
-                // Create new order object
-                const newOrder = {
+                // Create new order request
+                const newOrderRequest = {
                     price: parseFloat(price).toFixed(8),
                     quantity: quantity,
-                    isManuallyAdded: true
+                    orderType: orderType
                 };
                 
-                // Add to appropriate list and update display
-                if (orderBookData) {
-                    if (orderType === 'bid') {
-                        // Add to bids (sorted by price descending)
-                        orderBookData.bids.push(newOrder);
-                        orderBookData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-                    } else {
-                        // Add to asks (sorted by price ascending)
-                        orderBookData.asks.push(newOrder);
-                        orderBookData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                // Show loading indicator
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('loading').textContent = 'Adding new order...';
+                document.getElementById('order-book').style.display = 'none';
+                
+                // Send the order to the server
+                fetch('http://localhost:8080/api/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(newOrderRequest)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to add order. Server returned: ' + response.status);
                     }
-                    
-                    // Update the display
+                    return response.json();
+                })
+                .then(data => {
+                    // Update the order book data with the response from the server
+                    orderBookData = data;
                     updateOrderBook(orderBookData);
                     
                     // Reset form
                     document.getElementById('new-order-form').reset();
-                } else {
-                    alert('Order book data not loaded yet. Please wait and try again.');
-                }
+                })
+                .catch(error => {
+                    console.error('Error adding order:', error);
+                    alert('Error adding order: ' + error.message);
+                    
+                    // Restore the order book display
+                    if (orderBookData) {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('order-book').style.display = 'block';
+                    }
+                });
             });
             
             // Handle limit change
@@ -280,56 +297,19 @@
             // Initial fetch
             fetchOrderBookData(currentLimit);
             
-            // Function to fetch order book data directly from Binance API
+            // Function to fetch order book data from our server
             function fetchOrderBookData(limit) {
-                fetch(`https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=${limit}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Transform data to match the expected format
-                        const newOrderBookData = {
-                            lastUpdateId: data.lastUpdateId,
-                            bids: data.bids.map(item => ({ price: item[0], quantity: item[1] })),
-                            asks: data.asks.map(item => ({ price: item[0], quantity: item[1] }))
-                        };
-                        
-                        // Preserve manually added orders if we already have order book data
-                        if (orderBookData) {
-                            // Keep manually added bids
-                            const manualBids = orderBookData.bids.filter(bid => bid.isManuallyAdded);
-                            newOrderBookData.bids = [...newOrderBookData.bids, ...manualBids];
-                            newOrderBookData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-                            
-                            // Keep manually added asks
-                            const manualAsks = orderBookData.asks.filter(ask => ask.isManuallyAdded);
-                            newOrderBookData.asks = [...newOrderBookData.asks, ...manualAsks];
-                            newOrderBookData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-                        } else {
-                            // Add dummy manually added orders for testing (only first time)
-                            if (newOrderBookData.bids && newOrderBookData.bids.length > 0) {
-                                // Add a dummy bid with isManuallyAdded = true
-                                const firstBidPrice = parseFloat(newOrderBookData.bids[0].price);
-                                const dummyBidPrice = (firstBidPrice * 1.001).toFixed(8); // Slightly higher price
-                                newOrderBookData.bids.unshift({
-                                    price: dummyBidPrice,
-                                    quantity: "12345678",
-                                    isManuallyAdded: true
-                                });
-                            }
-                            
-                            if (newOrderBookData.asks && newOrderBookData.asks.length > 0) {
-                                // Add a dummy ask with isManuallyAdded = true
-                                const firstAskPrice = parseFloat(newOrderBookData.asks[0].price);
-                                const dummyAskPrice = (firstAskPrice * 0.999).toFixed(8); // Slightly lower price
-                                newOrderBookData.asks.unshift({
-                                    price: dummyAskPrice,
-                                    quantity: "54655",
-                                    isManuallyAdded: true
-                                });
-                            }
+                // We'll use our server endpoint instead of directly calling Binance API
+                fetch('http://localhost:8080/api/orderbook')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch order book data. Server returned: ' + response.status);
                         }
-                        
+                        return response.json();
+                    })
+                    .then(data => {
                         // Update the global orderBookData
-                        orderBookData = newOrderBookData;
+                        orderBookData = data;
                         updateOrderBook(orderBookData);
                     })
                     .catch(error => {
@@ -349,19 +329,6 @@
                 stompClient.subscribe('/topic/orderbook', function(message) {
                     if (message.body) {
                         const newData = JSON.parse(message.body);
-                        
-                        // Preserve manually added orders if we already have order book data
-                        if (orderBookData) {
-                            // Keep manually added bids
-                            const manualBids = orderBookData.bids.filter(bid => bid.isManuallyAdded);
-                            newData.bids = [...newData.bids, ...manualBids];
-                            newData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-                            
-                            // Keep manually added asks
-                            const manualAsks = orderBookData.asks.filter(ask => ask.isManuallyAdded);
-                            newData.asks = [...newData.asks, ...manualAsks];
-                            newData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-                        }
                         
                         // Update the global orderBookData
                         orderBookData = newData;
