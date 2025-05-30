@@ -7,4 +7,5 @@ export interface OrderBook {
 export interface PriceQuantityPair {
   price: string;
   quantity: string;
+  isManuallyAdded?: boolean;
 }

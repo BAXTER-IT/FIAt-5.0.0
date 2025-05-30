@@ -59,7 +59,9 @@ public class BinanceApiService {
             double bidPriceValue = Double.parseDouble(bidPrice);
             String dummyBidPrice = String.format("%.2f", bidPriceValue * 1.001); // Slightly higher price
             
-            orderBook.getBids().add(0, new PriceQuantityPair(dummyBidPrice, "12345678"));
+            PriceQuantityPair dummyBid = new PriceQuantityPair(dummyBidPrice, "12345678");
+            dummyBid.setIsManuallyAdded(true);
+            orderBook.getBids().add(0, dummyBid);
         }
         
         if (orderBook.getAsks() != null && !orderBook.getAsks().isEmpty()) {
@@ -69,7 +71,9 @@ public class BinanceApiService {
             double askPriceValue = Double.parseDouble(askPrice);
             String dummyAskPrice = String.format("%.2f", askPriceValue * 0.999); // Slightly lower price
             
-            orderBook.getAsks().add(0, new PriceQuantityPair(dummyAskPrice, "54655"));
+            PriceQuantityPair dummyAsk = new PriceQuantityPair(dummyAskPrice, "54655");
+            dummyAsk.setIsManuallyAdded(true);
+            orderBook.getAsks().add(0, dummyAsk);
         }
     }
     
