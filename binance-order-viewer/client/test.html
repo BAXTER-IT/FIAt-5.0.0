@@ -98,6 +98,42 @@
 <body>
     <div class="container">
         <h1>Binance Order Viewer</h1>
+        <div class="order-input-form" style="background-color: white; border-radius: 5px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin-top: 0; margin-bottom: 15px; text-align: center; color: #333;">Add New Order</h3>
+            <form id="new-order-form" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="order-price" style="display: block; margin-bottom: 5px; color: #666;">Price:</label>
+                    <input type="number" id="order-price" step="0.00000001" min="0" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="order-quantity" style="display: block; margin-bottom: 5px; color: #666;">Quantity:</label>
+                    <input type="number" id="order-quantity" step="0.00000001" min="0" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="order-type" style="display: block; margin-bottom: 5px; color: #666;">Order Type:</label>
+                    <select id="order-type" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 3px;">
+                        <option value="bid">Bid (Buy)</option>
+                        <option value="ask">Ask (Sell)</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="display: block; margin-bottom: 5px; color: #666;">Order Type (Radio):</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="order-type-radio" value="bid" checked style="margin-right: 5px;">
+                            <span>Bid (Buy)</span>
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="order-type-radio" value="ask" style="margin-right: 5px;">
+                            <span>Ask (Sell)</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="flex-basis: 100%; text-align: center; margin-top: 10px;">
+                    <button type="submit" style="padding: 8px 20px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Add Order</button>
+                </div>
+            </form>
+        </div>
         <div class="limit-control" style="text-align: center; margin-bottom: 20px;">
             <label for="limit-input">Select Limit (1-20): </label>
             <input type="number" id="limit-input" min="1" max="20" value="10" style="margin: 0 10px; padding: 5px;">
@@ -148,6 +184,83 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let currentLimit = 10; // Default limit
+            let orderBookData = null; // Store the current order book data
+            
+            // Sync dropdown and radio buttons
+            document.getElementById('order-type').addEventListener('change', function() {
+                const orderType = this.value;
+                const radioButtons = document.getElementsByName('order-type-radio');
+                for (const radio of radioButtons) {
+                    if (radio.value === orderType) {
+                        radio.checked = true;
+                        break;
+                    }
+                }
+            });
+            
+            // Sync radio buttons and dropdown
+            const radioButtons = document.getElementsByName('order-type-radio');
+            for (const radio of radioButtons) {
+                radio.addEventListener('change', function() {
+                    if (this.checked) {
+                        document.getElementById('order-type').value = this.value;
+                    }
+                });
+            }
+            
+            // Handle new order form submission
+            document.getElementById('new-order-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const price = document.getElementById('order-price').value;
+                const quantity = document.getElementById('order-quantity').value;
+                
+                // Get order type from radio buttons (more reliable than dropdown)
+                const orderTypeRadios = document.getElementsByName('order-type-radio');
+                let orderType = 'bid'; // Default to bid
+                for (const radio of orderTypeRadios) {
+                    if (radio.checked) {
+                        orderType = radio.value;
+                        break;
+                    }
+                }
+                
+                // Also update the dropdown to match (for consistency)
+                document.getElementById('order-type').value = orderType;
+                
+                if (!price || !quantity) {
+                    alert('Please enter both price and quantity');
+                    return;
+                }
+                
+                // Create new order object
+                const newOrder = {
+                    price: parseFloat(price).toFixed(8),
+                    quantity: quantity,
+                    isManuallyAdded: true
+                };
+                
+                // Add to appropriate list and update display
+                if (orderBookData) {
+                    if (orderType === 'bid') {
+                        // Add to bids (sorted by price descending)
+                        orderBookData.bids.push(newOrder);
+                        orderBookData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                    } else {
+                        // Add to asks (sorted by price ascending)
+                        orderBookData.asks.push(newOrder);
+                        orderBookData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                    }
+                    
+                    // Update the display
+                    updateOrderBook(orderBookData);
+                    
+                    // Reset form
+                    document.getElementById('new-order-form').reset();
+                } else {
+                    alert('Order book data not loaded yet. Please wait and try again.');
+                }
+            });
             
             // Handle limit change
             document.getElementById('apply-limit').addEventListener('click', function() {
@@ -173,34 +286,50 @@
                     .then(response => response.json())
                     .then(data => {
                         // Transform data to match the expected format
-                        const orderBookData = {
+                        const newOrderBookData = {
                             lastUpdateId: data.lastUpdateId,
                             bids: data.bids.map(item => ({ price: item[0], quantity: item[1] })),
                             asks: data.asks.map(item => ({ price: item[0], quantity: item[1] }))
                         };
                         
-                        // Add dummy manually added orders for testing
-                        if (orderBookData.bids && orderBookData.bids.length > 0) {
-                            // Add a dummy bid with isManuallyAdded = true
-                            const firstBidPrice = parseFloat(orderBookData.bids[0].price);
-                            const dummyBidPrice = (firstBidPrice * 1.001).toFixed(8); // Slightly higher price
-                            orderBookData.bids.unshift({
-                                price: dummyBidPrice,
-                                quantity: "12345678",
-                                isManuallyAdded: true
-                            });
+                        // Preserve manually added orders if we already have order book data
+                        if (orderBookData) {
+                            // Keep manually added bids
+                            const manualBids = orderBookData.bids.filter(bid => bid.isManuallyAdded);
+                            newOrderBookData.bids = [...newOrderBookData.bids, ...manualBids];
+                            newOrderBookData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                            
+                            // Keep manually added asks
+                            const manualAsks = orderBookData.asks.filter(ask => ask.isManuallyAdded);
+                            newOrderBookData.asks = [...newOrderBookData.asks, ...manualAsks];
+                            newOrderBookData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                        } else {
+                            // Add dummy manually added orders for testing (only first time)
+                            if (newOrderBookData.bids && newOrderBookData.bids.length > 0) {
+                                // Add a dummy bid with isManuallyAdded = true
+                                const firstBidPrice = parseFloat(newOrderBookData.bids[0].price);
+                                const dummyBidPrice = (firstBidPrice * 1.001).toFixed(8); // Slightly higher price
+                                newOrderBookData.bids.unshift({
+                                    price: dummyBidPrice,
+                                    quantity: "12345678",
+                                    isManuallyAdded: true
+                                });
+                            }
+                            
+                            if (newOrderBookData.asks && newOrderBookData.asks.length > 0) {
+                                // Add a dummy ask with isManuallyAdded = true
+                                const firstAskPrice = parseFloat(newOrderBookData.asks[0].price);
+                                const dummyAskPrice = (firstAskPrice * 0.999).toFixed(8); // Slightly lower price
+                                newOrderBookData.asks.unshift({
+                                    price: dummyAskPrice,
+                                    quantity: "54655",
+                                    isManuallyAdded: true
+                                });
+                            }
                         }
                         
-                        if (orderBookData.asks && orderBookData.asks.length > 0) {
-                            // Add a dummy ask with isManuallyAdded = true
-                            const firstAskPrice = parseFloat(orderBookData.asks[0].price);
-                            const dummyAskPrice = (firstAskPrice * 0.999).toFixed(8); // Slightly lower price
-                            orderBookData.asks.unshift({
-                                price: dummyAskPrice,
-                                quantity: "54655",
-                                isManuallyAdded: true
-                            });
-                        }
+                        // Update the global orderBookData
+                        orderBookData = newOrderBookData;
                         updateOrderBook(orderBookData);
                     })
                     .catch(error => {
@@ -219,7 +348,23 @@
                 // Subscribe to the order book topic
                 stompClient.subscribe('/topic/orderbook', function(message) {
                     if (message.body) {
-                        const orderBookData = JSON.parse(message.body);
+                        const newData = JSON.parse(message.body);
+                        
+                        // Preserve manually added orders if we already have order book data
+                        if (orderBookData) {
+                            // Keep manually added bids
+                            const manualBids = orderBookData.bids.filter(bid => bid.isManuallyAdded);
+                            newData.bids = [...newData.bids, ...manualBids];
+                            newData.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+                            
+                            // Keep manually added asks
+                            const manualAsks = orderBookData.asks.filter(ask => ask.isManuallyAdded);
+                            newData.asks = [...newData.asks, ...manualAsks];
+                            newData.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+                        }
+                        
+                        // Update the global orderBookData
+                        orderBookData = newData;
                         updateOrderBook(orderBookData);
                     }
                 });
