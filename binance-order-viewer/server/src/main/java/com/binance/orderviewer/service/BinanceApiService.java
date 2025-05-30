@@ -40,11 +40,10 @@ public class BinanceApiService {
         List<PriceQuantityPair> bids = convertToPriceQuantityPairs(bidsRaw);
         List<PriceQuantityPair> asks = convertToPriceQuantityPairs(asksRaw);
         
-        // Sort Binance API bids in descending order (highest price first)
+        // Sort Binance API bids in ascending order (lowest price first)
         if (bids != null && !bids.isEmpty()) {
             bids.sort(Comparator.comparing(
-                pair -> Double.parseDouble(pair.getPrice()), 
-                Comparator.reverseOrder()
+                pair -> Double.parseDouble(pair.getPrice())
             ));
         }
         
@@ -79,11 +78,10 @@ public class BinanceApiService {
         }
         orderBook.getBids().addAll(manualBids);
         
-        // Sort bids by price in descending order (highest price first)
+        // Sort bids by price in ascending order (lowest price first)
         if (!orderBook.getBids().isEmpty()) {
             orderBook.getBids().sort(Comparator.comparing(
-                pair -> Double.parseDouble(pair.getPrice()), 
-                Comparator.reverseOrder()
+                pair -> Double.parseDouble(pair.getPrice())
             ));
         }
         
@@ -148,10 +146,9 @@ public class BinanceApiService {
             }
             cachedOrderBook.getBids().add(order);
             
-            // Sort bids by price in descending order (highest price first)
+            // Sort bids by price in ascending order (lowest price first)
             cachedOrderBook.getBids().sort(Comparator.comparing(
-                pair -> Double.parseDouble(pair.getPrice()), 
-                Comparator.reverseOrder()
+                pair -> Double.parseDouble(pair.getPrice())
             ));
         } else if ("ask".equalsIgnoreCase(orderType)) {
             // Add to asks
